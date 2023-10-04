@@ -1,8 +1,20 @@
 require_relative 'db_connection'
 require_relative '01_sql_object'
 
-module Searchable
-  def where(params)
+class Relation
+  attr_reader :table_name, :model_class, :params, :sql_result
+
+  def initialize(table_name, model_class, params)
+    @table_name, @model_class, @params = table_name, model_class, params
+  end
+
+  def where(extra_params)
+    extra_params.each { |key, val| params[key] = val }
+    execute_sql
+    self
+  end
+
+  def execute_sql
     where_line = params.keys.map { |key| "#{key} = ?"}.join(" AND ")
     results = DBConnection.execute(<<-SQL, *(params.values))
       SELECT
@@ -12,7 +24,19 @@ module Searchable
       WHERE
         #{where_line}
     SQL
-    parse_all(results)
+    @sql_result = model_class.parse_all(results)
+    self
+  end
+
+  def [](idx)
+    @sql_result[idx]
+  end
+
+end
+
+module Searchable
+  def where(params)
+    Relation.new(table_name, self, params).execute_sql
   end
 end
 
