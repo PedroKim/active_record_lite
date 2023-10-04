@@ -4,8 +4,9 @@ require_relative '01_sql_object'
 class Relation
   attr_reader :table_name, :model_class, :params, :sql_result
 
-  def initialize(table_name, model_class, params)
+  def initialize(table_name, model_class, params, sql_result = [])
     @table_name, @model_class, @params = table_name, model_class, params
+    @sql_result = sql_result
   end
 
   def where(extra_params)
@@ -35,8 +36,18 @@ class Relation
 end
 
 module Searchable
+  def all
+    results = DBConnection.execute(<<-SQL)
+      SELECT
+        *
+      FROM
+        #{table_name}
+    SQL
+    Relation.new(table_name, self, {}, parse_all(results))
+  end
+
   def where(params)
-    Relation.new(table_name, self, params).execute_sql
+    Relation.new(table_name, self, params, []).execute_sql
   end
 end
 
